@@ -120,9 +120,9 @@ class Model(object):
             outer = tf.matrix_band_part(outer, 0, 15)
             self.yp1 = tf.argmax(tf.reduce_max(outer, axis=2), axis=1)
             self.yp2 = tf.argmax(tf.reduce_max(outer, axis=1), axis=1)
-            losses = tf.nn.softmax_cross_entropy_with_logits_v2(
+            losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=logits1, labels=tf.stop_gradient(self.y1))
-            losses2 = tf.nn.softmax_cross_entropy_with_logits_v2(
+            losses2 = tf.nn.softmax_cross_entropy_with_logits(
                 logits=logits2, labels=tf.stop_gradient(self.y2))
             self.loss = tf.reduce_mean(losses + losses2)
 

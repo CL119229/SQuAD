@@ -35,10 +35,19 @@ def process_file(filename, data_type, word_counter, char_counter):
     total = 0
     with open(filename, "r") as fh:
         source = json.load(fh)
+        k=0
         for article in tqdm(source["data"]):
-            for para in article["paragraphs"]:
-                context = para["context"].replace(
-                    "''", '" ').replace("``", '" ')
+            if k>200:break
+            k+=1
+            for para in article["paragraphs"]: #一个context可能有多question
+                # for temp in para['qas']:#每一个问题的信息
+            #         print(temp)
+            #         print("99999999999999999999")
+            #     print(para['context'])
+            #     print("22222222222222")
+            #
+            # print("111111111111111111111111111111111")
+                context = para["context"].replace("''", '" ').replace("``", '" ')
                 context_tokens = word_tokenize(context)
                 context_chars = [list(token) for token in context_tokens]
                 spans = convert_idx(context, context_tokens)
@@ -50,6 +59,11 @@ def process_file(filename, data_type, word_counter, char_counter):
                     total += 1
                     ques = qa["question"].replace(
                         "''", '" ').replace("``", '" ')
+                    ques_impossible=qa['is_impossible']
+                    if ques_impossible==True:
+                        print(qa["answers"])
+                        print("333333333333")
+                    ques_id=qa['id']
                     ques_tokens = word_tokenize(ques)
                     ques_chars = [list(token) for token in ques_tokens]
                     for token in ques_tokens:
@@ -203,45 +217,44 @@ def save(filename, obj, message=None):
 
 def prepro(config):
     word_counter, char_counter = Counter(), Counter()
-    train_examples, train_eval = process_file(
-        config.train_file, "train", word_counter, char_counter)
-    dev_examples, dev_eval = process_file(
-        config.dev_file, "dev", word_counter, char_counter)
-    test_examples, test_eval = process_file(
-        config.test_file, "test", word_counter, char_counter)
-
-    word_emb_file = config.fasttext_file if config.fasttext else config.glove_word_file
-    char_emb_file = config.glove_char_file if config.pretrained_char else None
-    char_emb_size = config.glove_char_size if config.pretrained_char else None
-    char_emb_dim = config.glove_dim if config.pretrained_char else config.char_dim
-
-    word2idx_dict = None
-    if os.path.isfile(config.word2idx_file):
-        with open(config.word2idx_file, "r") as fh:
-            word2idx_dict = json.load(fh)
-    word_emb_mat, word2idx_dict = get_embedding(word_counter, "word", emb_file=word_emb_file,
-                                                size=config.glove_word_size, vec_size=config.glove_dim, token2idx_dict=word2idx_dict)
-
-    char2idx_dict = None
-    if os.path.isfile(config.char2idx_file):
-        with open(config.char2idx_file, "r") as fh:
-            char2idx_dict = json.load(fh)
-    char_emb_mat, char2idx_dict = get_embedding(
-        char_counter, "char", emb_file=char_emb_file, size=char_emb_size, vec_size=char_emb_dim, token2idx_dict=char2idx_dict)
-
-    build_features(config, train_examples, "train",
-                   config.train_record_file, word2idx_dict, char2idx_dict)
-    dev_meta = build_features(config, dev_examples, "dev",
-                              config.dev_record_file, word2idx_dict, char2idx_dict)
-    test_meta = build_features(config, test_examples, "test",
-                               config.test_record_file, word2idx_dict, char2idx_dict, is_test=True)
-
-    save(config.word_emb_file, word_emb_mat, message="word embedding")
-    save(config.char_emb_file, char_emb_mat, message="char embedding")
-    save(config.train_eval_file, train_eval, message="train eval")
-    save(config.dev_eval_file, dev_eval, message="dev eval")
-    save(config.test_eval_file, test_eval, message="test eval")
-    save(config.dev_meta, dev_meta, message="dev meta")
-    save(config.word2idx_file, word2idx_dict, message="word2idx")
-    save(config.char2idx_file, char2idx_dict, message="char2idx")
-    save(config.test_meta, test_meta, message="test meta")
+    train_examples, train_eval = process_file(config.train_file, "train", word_counter, char_counter)
+    # dev_examples, dev_eval = process_file(
+    #     config.dev_file, "dev", word_counter, char_counter)
+    # test_examples, test_eval = process_file(
+    #     config.test_file, "test", word_counter, char_counter)
+    #
+    # word_emb_file = config.fasttext_file if config.fasttext else config.glove_word_file
+    # char_emb_file = config.glove_char_file if config.pretrained_char else None
+    # char_emb_size = config.glove_char_size if config.pretrained_char else None
+    # char_emb_dim = config.glove_dim if config.pretrained_char else config.char_dim
+    #
+    # word2idx_dict = None
+    # if os.path.isfile(config.word2idx_file):
+    #     with open(config.word2idx_file, "r") as fh:
+    #         word2idx_dict = json.load(fh)
+    # word_emb_mat, word2idx_dict = get_embedding(word_counter, "word", emb_file=word_emb_file,
+    #                                             size=config.glove_word_size, vec_size=config.glove_dim, token2idx_dict=word2idx_dict)
+    #
+    # char2idx_dict = None
+    # if os.path.isfile(config.char2idx_file):
+    #     with open(config.char2idx_file, "r") as fh:
+    #         char2idx_dict = json.load(fh)
+    # char_emb_mat, char2idx_dict = get_embedding(
+    #     char_counter, "char", emb_file=char_emb_file, size=char_emb_size, vec_size=char_emb_dim, token2idx_dict=char2idx_dict)
+    #
+    # build_features(config, train_examples, "train",
+    #                config.train_record_file, word2idx_dict, char2idx_dict)
+    # dev_meta = build_features(config, dev_examples, "dev",
+    #                           config.dev_record_file, word2idx_dict, char2idx_dict)
+    # test_meta = build_features(config, test_examples, "test",
+    #                            config.test_record_file, word2idx_dict, char2idx_dict, is_test=True)
+    #
+    # save(config.word_emb_file, word_emb_mat, message="word embedding")
+    # save(config.char_emb_file, char_emb_mat, message="char embedding")
+    # save(config.train_eval_file, train_eval, message="train eval")
+    # save(config.dev_eval_file, dev_eval, message="dev eval")
+    # save(config.test_eval_file, test_eval, message="test eval")
+    # save(config.dev_meta, dev_meta, message="dev meta")
+    # save(config.word2idx_file, word2idx_dict, message="word2idx")
+    # save(config.char2idx_file, char2idx_dict, message="char2idx")
+    # save(config.test_meta, test_meta, message="test meta")
