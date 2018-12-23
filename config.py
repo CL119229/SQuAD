@@ -8,12 +8,12 @@ flags = tf.flags
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 # home = os.path.expanduser("~")
-home='/disk/chenmingwei/SQUADS_traindata'
+home='/disk/chenmingwei/'
 # print(home,"2222222222222222222222222222")
-train_file = os.path.join(home, "train-v2.0.json")
-dev_file = os.path.join(home, "data", "squad", "dev-v1.1.json")
+train_file = os.path.join(home,'SQUADS_traindata',"train-v2.0.json")
+dev_file = os.path.join(home,'SQUADS_traindata',"dev-v2.0.json")
 test_file = os.path.join(home, "data", "squad", "dev-v1.1.json")
-glove_word_file = os.path.join(home, "data", "glove", "glove.840B.300d.txt")
+glove_word_file = os.path.join(home,"new_w2v","wiki.en.vec")
 
 target_dir = "data"
 log_dir = "log/event"
@@ -70,7 +70,7 @@ flags.DEFINE_string("answer_file", answer_file, "")
 flags.DEFINE_integer("glove_char_size", 94, "Corpus size for Glove")
 flags.DEFINE_integer("glove_word_size", int(2.2e6), "Corpus size for Glove")
 flags.DEFINE_integer("glove_dim", 300, "Embedding dimension for Glove")
-flags.DEFINE_integer("char_dim", 8, "Embedding dimension for char")
+flags.DEFINE_integer("char_dim", 300, "Embedding dimension for char")
 
 flags.DEFINE_integer("para_limit", 400, "Limit length for paragraph")
 flags.DEFINE_integer("ques_limit", 50, "Limit length for question")

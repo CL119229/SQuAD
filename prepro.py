@@ -6,7 +6,7 @@ import ujson as json
 from collections import Counter
 import numpy as np
 import os.path
-
+import struct
 nlp = spacy.blank("en")
 
 
@@ -16,6 +16,12 @@ def word_tokenize(sent):
 
 
 def convert_idx(text, tokens):
+    """
+    文档document分词之后在文档中开始,结束的位置
+    :param text:
+    :param tokens:
+    :return:
+    """
     current = 0
     spans = []
     for token in tokens:
@@ -37,16 +43,9 @@ def process_file(filename, data_type, word_counter, char_counter):
         source = json.load(fh)
         k=0
         for article in tqdm(source["data"]):
-            if k>200:break
+            if k>20:break
             k+=1
             for para in article["paragraphs"]: #一个context可能有多question
-                # for temp in para['qas']:#每一个问题的信息
-            #         print(temp)
-            #         print("99999999999999999999")
-            #     print(para['context'])
-            #     print("22222222222222")
-            #
-            # print("111111111111111111111111111111111")
                 context = para["context"].replace("''", '" ').replace("``", '" ')
                 context_tokens = word_tokenize(context)
                 context_chars = [list(token) for token in context_tokens]
@@ -57,12 +56,7 @@ def process_file(filename, data_type, word_counter, char_counter):
                         char_counter[char] += len(para["qas"])
                 for qa in para["qas"]:
                     total += 1
-                    ques = qa["question"].replace(
-                        "''", '" ').replace("``", '" ')
-                    ques_impossible=qa['is_impossible']
-                    if ques_impossible==True:
-                        print(qa["answers"])
-                        print("333333333333")
+                    ques = qa["question"].replace("''", '" ').replace("``", '" ')
                     ques_id=qa['id']
                     ques_tokens = word_tokenize(ques)
                     ques_chars = [list(token) for token in ques_tokens]
@@ -70,22 +64,27 @@ def process_file(filename, data_type, word_counter, char_counter):
                         word_counter[token] += 1
                         for char in token:
                             char_counter[char] += 1
-                    y1s, y2s = [], []
-                    answer_texts = []
-                    for answer in qa["answers"]:
-                        answer_text = answer["text"]
-                        answer_start = answer['answer_start']
-                        answer_end = answer_start + len(answer_text)
-                        answer_texts.append(answer_text)
-                        answer_span = []
-                        for idx, span in enumerate(spans):
-                            if not (answer_end <= span[0] or answer_start >= span[1]):
-                                answer_span.append(idx)
-                        y1, y2 = answer_span[0], answer_span[-1]
-                        y1s.append(y1)
-                        y2s.append(y2)
+                    ques_impossible=qa['is_impossible']
+                    if ques_impossible==True:
+                        y1s, y2s = [-1], [-1]
+                    else:
+                        y1s, y2s = [], []
+                        answer_texts = []
+                        for answer in qa["answers"]:#answer是有可能多个组成，所以是一个列表
+                            answer_text = answer["text"] #实际答案
+                            answer_start = answer['answer_start'] #答案在text中的位置
+                            answer_end = answer_start + len(answer_text)
+                            answer_texts.append(answer_text)
+                            answer_span = []
+                            for idx, span in enumerate(spans): #对应文档document分词的词语在文档中的开始位置以及词语在文档中的结束位置
+                                if not (answer_end <= span[0] or answer_start >= span[1]):#寻找在答案中的分词结果，answer_span添加的是对应的词语下标，
+                                                                                          #y1,and y2表示的是document分词之后的答案开始单词以及答案结束单词对应的下标
+                                    answer_span.append(idx)
+                            y1, y2 = answer_span[0], answer_span[-1]
+                            y1s.append(y1)
+                            y2s.append(y2) #有可能一个问题在document出现多次答案
                     example = {"context_tokens": context_tokens, "context_chars": context_chars, "ques_tokens": ques_tokens,
-                               "ques_chars": ques_chars, "y1s": y1s, "y2s": y2s, "id": total}
+                               "ques_chars": ques_chars, "y1s": y1s, "y2s": y2s, "id": ques_id}
                     examples.append(example)
                     eval_examples[str(total)] = {
                         "context": context, "spans": spans, "answers": answer_texts, "uuid": qa["id"]}
@@ -99,15 +98,20 @@ def get_embedding(counter, data_type, limit=-1, emb_file=None, size=None, vec_si
     embedding_dict = {}
     filtered_elements = [k for k, v in counter.items() if v > limit]
     if emb_file is not None:
-        assert size is not None
-        assert vec_size is not None
-        with open(emb_file, "r", encoding="utf-8") as fh:
+        # assert size is not None
+        # assert vec_size is not None
+        k=0
+        with open(emb_file, "r") as fh:
             for line in tqdm(fh, total=size):
+                if k==0:
+                    k+=1
+                    continue
                 array = line.split()
                 word = "".join(array[0:-vec_size])
                 vector = list(map(float, array[-vec_size:]))
                 if word in counter and counter[word] > limit:
                     embedding_dict[word] = vector
+                k+=1
         print("{} / {} tokens have corresponding {} embedding vector".format(
             len(embedding_dict), len(filtered_elements), data_type))
     else:
@@ -199,7 +203,7 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
                                   "ques_char_idxs": tf.train.Feature(bytes_list=tf.train.BytesList(value=[ques_char_idxs.tostring()])),
                                   "y1": tf.train.Feature(bytes_list=tf.train.BytesList(value=[y1.tostring()])),
                                   "y2": tf.train.Feature(bytes_list=tf.train.BytesList(value=[y2.tostring()])),
-                                  "id": tf.train.Feature(int64_list=tf.train.Int64List(value=[example["id"]]))
+                                  "id": tf.train.Feature(bytes_list=tf.train.BytesList(value=[example["id"].encode()]))
                                   }))
         writer.write(record.SerializeToString())
     print("Build {} / {} instances of features in total".format(total, total_))
@@ -218,43 +222,42 @@ def save(filename, obj, message=None):
 def prepro(config):
     word_counter, char_counter = Counter(), Counter()
     train_examples, train_eval = process_file(config.train_file, "train", word_counter, char_counter)
-    # dev_examples, dev_eval = process_file(
-    #     config.dev_file, "dev", word_counter, char_counter)
-    # test_examples, test_eval = process_file(
-    #     config.test_file, "test", word_counter, char_counter)
+    dev_examples, dev_eval = process_file(config.dev_file, "dev", word_counter, char_counter)
+    # test_examples, test_eval = process_file(config.test_file, "test", word_counter, char_counter)
     #
-    # word_emb_file = config.fasttext_file if config.fasttext else config.glove_word_file
-    # char_emb_file = config.glove_char_file if config.pretrained_char else None
-    # char_emb_size = config.glove_char_size if config.pretrained_char else None
-    # char_emb_dim = config.glove_dim if config.pretrained_char else config.char_dim
-    #
-    # word2idx_dict = None
-    # if os.path.isfile(config.word2idx_file):
-    #     with open(config.word2idx_file, "r") as fh:
-    #         word2idx_dict = json.load(fh)
-    # word_emb_mat, word2idx_dict = get_embedding(word_counter, "word", emb_file=word_emb_file,
-    #                                             size=config.glove_word_size, vec_size=config.glove_dim, token2idx_dict=word2idx_dict)
-    #
-    # char2idx_dict = None
-    # if os.path.isfile(config.char2idx_file):
-    #     with open(config.char2idx_file, "r") as fh:
-    #         char2idx_dict = json.load(fh)
-    # char_emb_mat, char2idx_dict = get_embedding(
-    #     char_counter, "char", emb_file=char_emb_file, size=char_emb_size, vec_size=char_emb_dim, token2idx_dict=char2idx_dict)
-    #
-    # build_features(config, train_examples, "train",
-    #                config.train_record_file, word2idx_dict, char2idx_dict)
-    # dev_meta = build_features(config, dev_examples, "dev",
-    #                           config.dev_record_file, word2idx_dict, char2idx_dict)
+    word_emb_file = config.fasttext_file if config.fasttext else config.glove_word_file
+    char_emb_file = config.glove_char_file if config.pretrained_char else None
+    char_emb_size = config.glove_char_size if config.pretrained_char else None
+    char_emb_dim = config.glove_dim if config.pretrained_char else config.char_dim
+
+    word2idx_dict = None
+    if os.path.isfile(config.word2idx_file):
+        with open(config.word2idx_file, "r") as fh:
+            word2idx_dict = json.load(fh)
+    word_emb_mat, word2idx_dict = get_embedding(word_counter, "word", emb_file=word_emb_file,
+                                                size=config.glove_word_size, vec_size=config.glove_dim, token2idx_dict=word2idx_dict)
+
+    char2idx_dict = None
+    if os.path.isfile(config.char2idx_file):
+        with open(config.char2idx_file, "r") as fh:
+            char2idx_dict = json.load(fh)
+    char_emb_mat, char2idx_dict = get_embedding(
+        char_counter, "char", emb_file=word_emb_file, size=char_emb_size, vec_size=char_emb_dim, token2idx_dict=char2idx_dict)
+
+    build_features(config, train_examples, "train",
+                   config.train_record_file, word2idx_dict, char2idx_dict)
+    print("finsh")
+    dev_meta = build_features(config, dev_examples, "dev",
+                              config.dev_record_file, word2idx_dict, char2idx_dict)
     # test_meta = build_features(config, test_examples, "test",
     #                            config.test_record_file, word2idx_dict, char2idx_dict, is_test=True)
-    #
-    # save(config.word_emb_file, word_emb_mat, message="word embedding")
-    # save(config.char_emb_file, char_emb_mat, message="char embedding")
-    # save(config.train_eval_file, train_eval, message="train eval")
-    # save(config.dev_eval_file, dev_eval, message="dev eval")
+
+    save(config.word_emb_file, word_emb_mat, message="word embedding")
+    save(config.char_emb_file, char_emb_mat, message="char embedding")
+    save(config.train_eval_file, train_eval, message="train eval")
+    save(config.dev_eval_file, dev_eval, message="dev eval")
     # save(config.test_eval_file, test_eval, message="test eval")
-    # save(config.dev_meta, dev_meta, message="dev meta")
-    # save(config.word2idx_file, word2idx_dict, message="word2idx")
-    # save(config.char2idx_file, char2idx_dict, message="char2idx")
+    save(config.dev_meta, dev_meta, message="dev meta")
+    save(config.word2idx_file, word2idx_dict, message="word2idx")
+    save(config.char2idx_file, char2idx_dict, message="char2idx")
     # save(config.test_meta, test_meta, message="test meta")
