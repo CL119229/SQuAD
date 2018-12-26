@@ -41,10 +41,7 @@ def process_file(filename, data_type, word_counter, char_counter):
     total = 0
     with open(filename, "r") as fh:
         source = json.load(fh)
-        k=0
         for article in tqdm(source["data"]):
-            if k>20:break
-            k+=1
             for para in article["paragraphs"]: #一个context可能有多question
                 context = para["context"].replace("''", '" ').replace("``", '" ')
                 context_tokens = word_tokenize(context)
@@ -86,7 +83,7 @@ def process_file(filename, data_type, word_counter, char_counter):
                     example = {"context_tokens": context_tokens, "context_chars": context_chars, "ques_tokens": ques_tokens,
                                "ques_chars": ques_chars, "y1s": y1s, "y2s": y2s, "id": ques_id}
                     examples.append(example)
-                    eval_examples[str(total)] = {
+                    eval_examples[ques_id] = {
                         "context": context, "spans": spans, "answers": answer_texts, "uuid": qa["id"]}
         random.shuffle(examples)
         print("{} questions in total".format(len(examples)))

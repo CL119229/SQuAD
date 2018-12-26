@@ -18,7 +18,7 @@ def get_record_parser(config, is_test=False):
                                                "ques_char_idxs": tf.FixedLenFeature([], tf.string),
                                                "y1": tf.FixedLenFeature([], tf.string),
                                                "y2": tf.FixedLenFeature([], tf.string),
-                                               "id": tf.FixedLenFeature([], tf.int64)
+                                               "id": tf.FixedLenFeature([], tf.string)
                                            })
         context_idxs = tf.reshape(tf.decode_raw(
             features["context_idxs"], tf.int32), [para_limit])
@@ -75,9 +75,10 @@ def convert_tokens(eval_file, qa_id, pp1, pp2):
     answer_dict = {}
     remapped_dict = {}
     for qid, p1, p2 in zip(qa_id, pp1, pp2):
-        context = eval_file[str(qid)]["context"]
-        spans = eval_file[str(qid)]["spans"]
-        uuid = eval_file[str(qid)]["uuid"]
+        qid=str(qid,'utf-8')
+        context = eval_file[qid]["context"]
+        spans = eval_file[qid]["spans"]
+        uuid = eval_file[qid]["uuid"]
         start_idx = spans[p1][0]
         end_idx = spans[p2][1]
         answer_dict[str(qid)] = context[start_idx: end_idx]

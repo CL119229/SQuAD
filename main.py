@@ -68,12 +68,16 @@ def train(config):
 
                 metrics, summ = evaluate_batch(
                     model, dev_total // config.batch_size + 1, dev_eval_file, sess, "dev", handle, dev_handle)
+                print(metrics,"111111111111111111111111111111111111111")
                 sess.run(tf.assign(model.is_train,
                                    tf.constant(True, dtype=tf.bool)))
 
                 dev_loss = metrics["loss"]
                 if dev_loss < loss_save:
                     loss_save = dev_loss
+                    filename = os.path.join(
+                        config.save_dir, "model_{}.ckpt".format(global_step))
+                    saver.save(sess, filename)
                     patience = 0
                 else:
                     patience += 1
@@ -85,9 +89,7 @@ def train(config):
                 for s in summ:
                     writer.add_summary(s, global_step)
                 writer.flush()
-                filename = os.path.join(
-                    config.save_dir, "model_{}.ckpt".format(global_step))
-                saver.save(sess, filename)
+
 
 
 def evaluate_batch(model, num_batches, eval_file, sess, data_type, handle, str_handle):

@@ -15,10 +15,10 @@ dev_file = os.path.join(home,'SQUADS_traindata',"dev-v2.0.json")
 test_file = os.path.join(home, "data", "squad", "dev-v1.1.json")
 glove_word_file = os.path.join(home,"new_w2v","wiki.en.vec")
 
-target_dir = "data"
-log_dir = "log/event"
-save_dir = "log/model"
-answer_dir = "log/answer"
+target_dir = os.path.join(home,'SQUADS_traindata',"data")
+log_dir = os.path.join(home,'SQUADS_traindata', "log/event")
+save_dir = os.path.join(home,'SQUADS_traindata', "log/model")
+answer_dir = os.path.join(home,'SQUADS_traindata',"log/answer")
 train_record_file = os.path.join(target_dir, "train.tfrecords")
 dev_record_file = os.path.join(target_dir, "dev.tfrecords")
 test_record_file = os.path.join(target_dir, "test.tfrecords")
@@ -42,7 +42,7 @@ if not os.path.exists(save_dir):
 if not os.path.exists(answer_dir):
     os.makedirs(answer_dir)
 
-flags.DEFINE_string("mode", "prepro", "train/debug/test/prepro")
+flags.DEFINE_string("mode", "train", "train/debug/test/prepro")
 
 flags.DEFINE_string("target_dir", target_dir, "")
 flags.DEFINE_string("log_dir", log_dir, "")
@@ -89,7 +89,7 @@ flags.DEFINE_boolean("is_bucket", False, "Whether to use bucketing")
 
 flags.DEFINE_integer("batch_size", 64, "Batch size")
 flags.DEFINE_integer("num_steps", 60000, "Number of steps")
-flags.DEFINE_integer("checkpoint", 1000, "checkpoint for evaluation")
+flags.DEFINE_integer("checkpoint", 50, "checkpoint for evaluation")
 flags.DEFINE_integer("period", 100, "period to save batch loss")
 flags.DEFINE_integer("val_num_batches", 150, "Num of batches for evaluation")
 flags.DEFINE_float("init_lr", 0.5, "Initial lr for Adadelta")
