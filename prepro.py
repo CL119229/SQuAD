@@ -41,7 +41,10 @@ def process_file(filename, data_type, word_counter, char_counter):
     total = 0
     with open(filename, "r") as fh:
         source = json.load(fh)
-        for article in tqdm(source["data"]):
+        for article in tqdm(source["data"]):#all article is 442
+            # if total>20:break
+            #print(len(article))  article只有两个长度one is 'title' ,other is 'paragraphs'
+            #print(len(article["paragraphs"])) each article has many paragraph
             for para in article["paragraphs"]: #一个context可能有多question
                 context = para["context"].replace("''", '" ').replace("``", '" ')
                 context_tokens = word_tokenize(context)
@@ -51,7 +54,7 @@ def process_file(filename, data_type, word_counter, char_counter):
                     word_counter[token] += len(para["qas"])
                     for char in token:
                         char_counter[char] += len(para["qas"])
-                for qa in para["qas"]:
+                for qa in para["qas"]:#每一个段落有多个问题,每一个问题有一个id
                     total += 1
                     ques = qa["question"].replace("''", '" ').replace("``", '" ')
                     ques_id=qa['id']
@@ -63,7 +66,7 @@ def process_file(filename, data_type, word_counter, char_counter):
                             char_counter[char] += 1
                     ques_impossible=qa['is_impossible']
                     if ques_impossible==True:
-                        y1s, y2s = [-1], [-1]
+                        y1s, y2s = [0], [0]
                     else:
                         y1s, y2s = [], []
                         answer_texts = []
@@ -122,13 +125,13 @@ def get_embedding(counter, data_type, limit=-1, emb_file=None, size=None, vec_si
     NULL = "--NULL--"
     OOV = "--OOV--"
     token2idx_dict = {token: idx for idx, token in enumerate(
-        embedding_dict.keys(), 2)} if token2idx_dict is None else token2idx_dict
+        embedding_dict.keys(), 2)} if token2idx_dict is None else token2idx_dict#单词与下标对应
     token2idx_dict[NULL] = 0
     token2idx_dict[OOV] = 1
     embedding_dict[NULL] = [0. for _ in range(vec_size)]
     embedding_dict[OOV] = [0. for _ in range(vec_size)]
     idx2emb_dict = {idx: embedding_dict[token]
-                    for token, idx in token2idx_dict.items()}
+                    for token, idx in token2idx_dict.items()} #下标对应的词向量
     emb_mat = [idx2emb_dict[idx] for idx in range(len(idx2emb_dict))]
     return emb_mat, token2idx_dict
 
@@ -154,7 +157,7 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
             continue
 
         total += 1
-        context_idxs = np.zeros([para_limit], dtype=np.int32)
+        context_idxs = np.zeros([para_limit], dtype=np.int32)#把句子转化为下标的过程
         context_char_idxs = np.zeros([para_limit, char_limit], dtype=np.int32)
         ques_idxs = np.zeros([ques_limit], dtype=np.int32)
         ques_char_idxs = np.zeros([ques_limit, char_limit], dtype=np.int32)
@@ -218,10 +221,10 @@ def save(filename, obj, message=None):
 
 def prepro(config):
     word_counter, char_counter = Counter(), Counter()
-    train_examples, train_eval = process_file(config.train_file, "train", word_counter, char_counter)
-    dev_examples, dev_eval = process_file(config.dev_file, "dev", word_counter, char_counter)
-    # test_examples, test_eval = process_file(config.test_file, "test", word_counter, char_counter)
-    #
+    train_examples, train_eval = process_file(config.train_file, "train", word_counter, char_counter) #442 article
+    dev_examples, dev_eval = process_file(config.dev_file, "dev", word_counter, char_counter)#35 article
+    # # test_examples, test_eval = process_file(config.test_file, "test", word_counter, char_counter)
+    # #
     word_emb_file = config.fasttext_file if config.fasttext else config.glove_word_file
     char_emb_file = config.glove_char_file if config.pretrained_char else None
     char_emb_size = config.glove_char_size if config.pretrained_char else None
@@ -240,15 +243,16 @@ def prepro(config):
             char2idx_dict = json.load(fh)
     char_emb_mat, char2idx_dict = get_embedding(
         char_counter, "char", emb_file=word_emb_file, size=char_emb_size, vec_size=char_emb_dim, token2idx_dict=char2idx_dict)
-
+    print("22222222222222")
+    #这里build_feature的数据是在词向量中，没有在词向量的数据，下标全部为1，就相当于删除了
     build_features(config, train_examples, "train",
                    config.train_record_file, word2idx_dict, char2idx_dict)
     print("finsh")
     dev_meta = build_features(config, dev_examples, "dev",
                               config.dev_record_file, word2idx_dict, char2idx_dict)
-    # test_meta = build_features(config, test_examples, "test",
-    #                            config.test_record_file, word2idx_dict, char2idx_dict, is_test=True)
-
+    # # test_meta = build_features(config, test_examples, "test",
+    # #                            config.test_record_file, word2idx_dict, char2idx_dict, is_test=True)
+    #
     save(config.word_emb_file, word_emb_mat, message="word embedding")
     save(config.char_emb_file, char_emb_mat, message="char embedding")
     save(config.train_eval_file, train_eval, message="train eval")

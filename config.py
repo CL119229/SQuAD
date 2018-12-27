@@ -42,7 +42,7 @@ if not os.path.exists(save_dir):
 if not os.path.exists(answer_dir):
     os.makedirs(answer_dir)
 
-flags.DEFINE_string("mode", "train", "train/debug/test/prepro")
+flags.DEFINE_string("mode", "prepro", "train/debug/test/prepro")
 
 flags.DEFINE_string("target_dir", target_dir, "")
 flags.DEFINE_string("log_dir", log_dir, "")
